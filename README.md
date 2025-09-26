@@ -12,7 +12,8 @@ Mas vamos la! Utlizei o Xamp para fazer o site entao aqui vai as instrucoes:
 
 2-abra o xamp , de start no server "Apache".
 
-3-baixe os 3 arquivos disponiveis aqui neste repositorio  ("style.css , index.php , contratacoes.txt). 
+3-baixe os 3 arquivos disponiveis aqui neste repositorio  ("style.css , index.php , contratacoes.txt)
+Lembre de desativar a traducao automatica da pagina. 
 
 4-Va no diretorio C: , depois abra a pasta xampp , depois abra a pasta HTDOCS e exclua o arquivo index.php base que vem nela.
 
