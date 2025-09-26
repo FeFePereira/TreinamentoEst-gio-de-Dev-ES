@@ -7,7 +7,7 @@ Tambem tentei usar banco de dados ( Firebase ) mas estava dando problema com o L
 Tambem tive algumas duvidas em relacao aos comentarios e como foi a primeira vez que trabalhei utilizando comentarios nas linhas de codigo, tambem pedi auxilio a Ia para faze-lo devido a minha inexperiencia. 
 
 Mas vamos la! Utlizei o Xamp para fazer o site entao aqui vai as instrucoes:
-1-baixe o xampp no seu computador ou not .
+1-baixe o xampp no seu computador ou notbook .
 2-abra o xamp , de start no server "Apache".
 3-baixe os 3 arquivos disponiveis aqui neste repositorio  ("style.css , index.php , contratacoes.txt). 
 4-Va no diretorio C: , depois abra a pasta xampp , depois abra a pasta HTDOCS e exclua o arquivo index.php base que vem nela.
