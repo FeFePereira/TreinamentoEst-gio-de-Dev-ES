@@ -1,36 +1,30 @@
 <?php
-// Let's start the session. Think of it as a way to save information about the user as they browse our website.
-// Vamos iniciar a sessão. Pense nisso como uma forma de salvar informações do usuário enquanto ele navega no nosso site.
+// Start the session to save user information.
+// Inicia a sessão para salvar informações do usuário.
 session_start();
 
-// This is where we decide which "page" to show. If nothing is specified in the URL, we'll just go to the login page.
-// É aqui que a gente decide qual "página" exibir. Se nada for definido na URL, a gente assume que é a página de login.
 $page = isset($_GET['page']) ? $_GET['page'] : 'login';
 
-// Let's grab the username from the session, if it exists.
-// Vamos pegar o nome do usuário da sessão, se ele estiver logado.
 $nome_usuario = isset($_SESSION['usuario_logado']) ? $_SESSION['usuario_logado'] : '';
 
-// This part of the code handles form submissions and other actions.
-// Essa parte do código processa os formulários e outras ações.
+// Process form submissions and actions when the request method is POST.
+// Processa submissões de formulário e ações quando o método de requisição é POST.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     switch ($_POST['action']) {
         case 'login':
             $nome_usuario_input = $_POST['nome_usuario'];
             if (!empty($nome_usuario_input)) {
-                // If the user entered a name, we'll save it to the session.
-                // Se o usuário digitou um nome, a gente salva na sessão.
+                // Save the username to the session and redirect.
+                // Salva o nome do usuário na sessão e redireciona.
                 $_SESSION['usuario_logado'] = $nome_usuario_input;
-                // Then, we redirect them to the home page.
-                // Depois, a gente redireciona ele para a página inicial.
                 header('Location: index.php?page=home');
                 exit;
             }
             break;
 
         case 'salvar_contratacao':
-            // We'll clean up the data from the form to make sure it's safe.
-            // Vamos limpar os dados do formulário para garantir que estão seguros.
+            // Sanitize and validate form data for hiring.
+            // Limpa e valida os dados do formulário de contratação.
             $nome = htmlspecialchars(trim($_POST['nome']));
             $artista = htmlspecialchars(trim($_POST['artista_selecionado']));
             $cache = filter_var($_POST['cache'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
@@ -38,12 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $endereco = htmlspecialchars(trim($_POST['endereco']));
 
             if (!empty($nome) && !empty($artista) && !empty($data_evento) && !empty($endereco)) {
-                // We'll format the data into a single line.
-                // A gente vai formatar os dados em uma única linha.
                 $linha = "Nome: $nome | Artista: $artista | Cachê: " . ($cache ? "R$ " . number_format($cache, 2, ',', '.') : "Não Informado") . " | Data: $data_evento | Endereço: $endereco\n";
                 $arquivo = 'contratacoes.txt';
-                // And save it to our file.
-                // E salvamos no nosso arquivo.
+                // Append the data to the file with an exclusive lock for safety.
+                // Adiciona os dados ao arquivo com um bloqueio exclusivo por segurança.
                 if (file_put_contents($arquivo, $linha, FILE_APPEND | LOCK_EX) !== false) {
                     header('Location: index.php?page=sucesso');
                     exit;
@@ -53,41 +45,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Handles the logout action.
+// Handle the logout action.
 // Cuida da ação de logout.
 if ($page === 'logout') {
-    // This will clear all session variables and destroy the session.
-    // Isso vai limpar todas as variáveis de sessão e destruir a sessão.
+    // Clear all session variables and destroy the session.
+    // Limpa todas as variáveis de sessão e destrói a sessão.
     session_unset();
     session_destroy();
-    // Then we send the user back to the login page.
-    // Depois, a gente manda o usuário de volta para a página de login.
     header('Location: index.php');
     exit;
 }
 
-// Security check: if the user is not logged in and is trying to access any page other than 'login', we redirect them to the login page.
-// Checagem de segurança: se o usuário não está logado e tenta acessar qualquer página que não seja 'login', a gente o redireciona.
+// Security check: redirect to login if not logged in and not on the 'login' page.
+// Checagem de segurança: redireciona para o login se não estiver logado e não for a página 'login'.
 if (!isset($_SESSION['usuario_logado']) && $page !== 'login') {
     header('Location: index.php?page=login');
     exit;
 }
 
-// Our functions to fetch data from the iTunes API.
-// Nossas funções para buscar dados na API do iTunes.
+// Function to fetch artists from the iTunes API based on a search term.
+// Função para buscar artistas na API do iTunes com base em um termo de pesquisa.
 function buscarArtistas($termo) {
-    // This URL searches for artists on iTunes.
-    // Essa URL busca artistas no iTunes.
+    // Construct the API URL for artist search.
+    // Constrói a URL da API para busca de artistas.
     $url = 'https://itunes.apple.com/search?term=' . urlencode($termo) . '&media=music&entity=musicArtist&limit=25';
-    // We try to get the content from the URL. The '@' hides any errors.
-    // A gente tenta pegar o conteúdo da URL. O '@' esconde qualquer erro.
+    // Fetch the JSON response. The '@' suppresses connection errors.
+    // Busca a resposta JSON. O '@' suprime erros de conexão.
     $resposta_json = @file_get_contents($url);
     $artistas_encontrados = [];
     if ($resposta_json !== FALSE) {
         $dados = json_decode($resposta_json, true);
         if (isset($dados['results'])) {
-            // We loop through the results and grab the artist's name and ID.
-            // A gente passa por cada resultado e pega o nome e o ID do artista.
+            // Loop through results to extract artist name and ID.
+            // Percorre os resultados para extrair o nome e o ID do artista.
             foreach ($dados['results'] as $resultado) {
                 $artistas_encontrados[] = [
                     'name' => $resultado['artistName'],
@@ -99,17 +89,19 @@ function buscarArtistas($termo) {
     return $artistas_encontrados;
 }
 
+// Function to fetch songs by a specific artist ID from the iTunes API.
+// Função para buscar músicas por um ID de artista específico na API do iTunes.
 function buscarMusicas($artistId) {
-    // This URL searches for songs by a specific artist ID.
-    // Essa URL busca músicas de um artista específico pelo ID.
+    // Construct the API URL for looking up songs by artist ID.
+    // Constrói a URL da API para pesquisa de músicas por ID de artista.
     $url = 'https://itunes.apple.com/lookup?id=' . urlencode($artistId) . '&entity=song&limit=25';
     $resposta_json = @file_get_contents($url);
     $musicas_encontradas = [];
     if ($resposta_json !== FALSE) {
         $dados = json_decode($resposta_json, true);
         if (isset($dados['results'])) {
-            // We'll skip the first result because it's usually the artist itself, not a song.
-            // A gente pula o primeiro resultado porque geralmente é o artista, não a música.
+            // Skip the first result (usually the artist profile) and list songs.
+            // Pula o primeiro resultado (geralmente o perfil do artista) e lista as músicas.
             for ($i = 1; $i < count($dados['results']); $i++) {
                 if (isset($dados['results'][$i]['trackName'])) {
                     $musicas_encontradas[] = $dados['results'][$i]['trackName'];
@@ -127,19 +119,17 @@ function buscarMusicas($artistId) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ES - Sistema de Contratação</title>
-    <!-- We'll link to our cool new stylesheet here! -->
-    <!-- Vamos linkar com o nosso novo e estiloso CSS aqui! -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <!-- This is where we decide which content to show based on the page variable. -->
-        <!-- É aqui que a gente decide qual conteúdo mostrar com base na variável da página. -->
         <?php
-        // Login Page
-        // Tela de Login
+        // Logic for the 'login' page.
+        // Lógica para a página de 'login'.
         if ($page === 'login') {
             $mensagem_erro = '';
+            // Check for empty username on login attempt.
+            // Verifica se o campo de nome de usuário está vazio na tentativa de login.
             if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'login' && empty($_POST['nome_usuario'])) {
                 $mensagem_erro = 'Por favor, insira um nome de usuário para continuar.';
             }
@@ -160,8 +150,8 @@ function buscarMusicas($artistId) {
                 </form>
             </div>
         <?php
-        // Home Page
-        // Tela Principal
+        // Logic for the 'home' page.
+        // Lógica para a página 'home'.
         } elseif ($page === 'home') {
         ?>
             <div class="card">
@@ -175,11 +165,13 @@ function buscarMusicas($artistId) {
                 </div>
             </div>
         <?php
-        // Artist Search Page
-        // Tela de Pesquisa de Artistas
+        // Logic for the 'pesquisa' (search) page.
+        // Lógica para a página de 'pesquisa'.
         } elseif ($page === 'pesquisa') {
             $artistas = [];
             $termo_pesquisa = '';
+            // Execute search if a term is present in the URL.
+            // Executa a busca se um termo estiver presente na URL.
             if (isset($_GET['termo']) && !empty(trim($_GET['termo']))) {
                 $termo_pesquisa = trim($_GET['termo']);
                 $artistas = buscarArtistas($termo_pesquisa);
@@ -216,12 +208,14 @@ function buscarMusicas($artistId) {
                 <?php endif; ?>
             </div>
         <?php
-        // View Songs Page
-        // Tela de Ver Músicas
+        // Logic for the 'ver_musicas' (view songs) page.
+        // Lógica para a página 'ver_musicas'.
         } elseif ($page === 'ver_musicas') {
             $musicas = [];
             $artista_selecionado = 'Artista';
             $mensagem_erro = null;
+            // Fetch songs if the artist ID is valid.
+            // Busca músicas se o ID do artista for válido.
             if (isset($_GET['id']) && !empty(trim($_GET['id']))) {
                 $id_artista = trim($_GET['id']);
                 $artista_selecionado = isset($_GET['artista']) ? urldecode($_GET['artista']) : 'Artista';
@@ -250,8 +244,8 @@ function buscarMusicas($artistId) {
                 </div>
             </div>
         <?php
-        // Hire Page
-        // Tela de Contratação
+        // Logic for the 'contratacao' (hire) page.
+        // Lógica para a página de 'contratacao'.
         } elseif ($page === 'contratacao') {
             $artista_selecionado = isset($_GET['artista']) ? urldecode($_GET['artista']) : '';
         ?>
@@ -284,8 +278,8 @@ function buscarMusicas($artistId) {
                 </form>
             </div>
         <?php
-        // Success Page
-        // Tela de Sucesso
+        // Logic for the 'sucesso' (success) page.
+        // Lógica para a página de 'sucesso'.
         } elseif ($page === 'sucesso') {
         ?>
             <div class="card">
@@ -297,18 +291,18 @@ function buscarMusicas($artistId) {
                 </div>
             </div>
         <?php
-        // View Hires Page
-        // Tela de Ver Contratações
+        // Logic for the 'ver_contratacoes' (view hires) page.
+        // Lógica para a página 'ver_contratacoes'.
         } elseif ($page === 'ver_contratacoes') {
             $contratacoes = [];
             $arquivo = 'contratacoes.txt';
-            // We check if our file exists and get its content.
-            // A gente verifica se nosso arquivo existe e pega o conteúdo dele.
+            // Check if the file exists and read its content.
+            // Verifica se o arquivo existe e lê seu conteúdo.
             if (file_exists($arquivo)) {
                 $conteudo = file_get_contents($arquivo);
                 if ($conteudo !== false) {
-                    // We'll split the content by line to get each individual hire.
-                    // A gente vai separar o conteúdo por linha para ter cada contratação individual.
+                    // Split the content by newline to get individual hires.
+                    // Divide o conteúdo por nova linha para obter contratações individuais.
                     $contratacoes = explode("\n", trim($conteudo));
                 }
             }
@@ -333,4 +327,5 @@ function buscarMusicas($artistId) {
         ?>
     </div>
 </body>
+
 </html>
